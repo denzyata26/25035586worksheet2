@@ -6,7 +6,37 @@
 ## Overview
 This repository contains my implementation for Worksheet 2 Part 1, following Chapters 1 to 4 of *The Little Book of OS Development*. It builds a 32-bit x86 operating system kernel booted from scratch via GRUB Legacy (`stage2_eltorito`) in QEMU.
 
-## Task 1 - Booting the Machine (20%)
+## Directory Structure
+```text
+25035586worksheet2/
+├── drivers/
+│   ├── framebuffer.c
+│   └── framebuffer.h
+├── evi/
+│   ├── elf_headers.png
+│   ├── seabios.png
+│   ├── grub.png
+│   ├── cafebabe_log.png
+│   ├── stack_symbol.png
+│   ├── kernel_output.png
+│   └── build.png
+├── iso/
+│   └── boot/
+│       └── grub/
+│           ├── menu.lst
+│           └── stage2_eltorito
+├── source/
+│   ├── kernel.c
+│   ├── link.ld
+│   └── loader.asm
+├── .gitignore
+├── Makefile
+└── README.md
+```
+
+    
+
+# Task 1 - Booting the Machine 
 The kernel entry point is implemented in `source/loader.asm`. To allow GRUB to validate and load the ELF binary at physical and virtual address `0x00100000` (1 MB), the Multiboot header constants (`MAGIC_NUMBER = 0x1BADB002`, `FLAGS = 0x0`, and `CHECKSUM = -0x1BADB002`) are aligned at the start of the `.text` segment via `source/link.ld`:
 
 ```nasm
@@ -37,7 +67,7 @@ Upon booting the `os` entry, `loader` writes `0xCAFEBABE` into the `eax` registe
 
 ![CAFEBABE CPU Log](evi/cafebabe_log.png)
 
-## Task 2 - Calling C from Assembler (20%)
+## Task 2 - Calling C from Assembler 
 Since bare-metal execution starts without a valid C stack, 4096 bytes (`KERNEL_STACK_SIZE equ 4096`) are reserved in the `.bss` section of `source/loader.asm`. Because the x86 stack grows downwards towards lower memory addresses, `esp` is initialized to the top of `kernel_stack` before calling `kmain`:
 
 ```nasm
@@ -70,7 +100,7 @@ int max_val(int a, int b) {
 }
 ```
 
-## Task 3 - Framebuffer & I/O Driver API (40%)
+## Task 3 - Framebuffer & I/O Driver API
 The VGA text-mode driver is separated under `drivers/framebuffer.c`, `drivers/framebuffer.h`, and `drivers/io.h`. It writes characters and color bytes to memory-mapped I/O starting at `0x000B8000` (80x25 cells, 2 bytes per cell):
 
 ```c
