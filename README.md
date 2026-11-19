@@ -14,7 +14,7 @@ If you want a fast overview of what this repository accomplishes, here is the br
 - **Part 1 (Booting & Framebuffer):** Implements multiboot compliance, a 32-bit stack setup, C-to-Assembly integration, and a VGA text-mode driver (`loader.asm`, `link.ld`, `kernel.c`, `framebuffer.c`).
 - **Part 2 (Interrupts & Shell):** Implements IDT configuration, PIC remapping, COM1 serial port, a PS/2 keyboard driver, and an interactive shell (`interrupts.c`, `pic.c`, `keyboard.c`).
 
-## Directory Structure
+## Directory Structure  (Part 1 Baseline)
 ```text
 25035586worksheet2/
 ├── drivers/
@@ -153,7 +153,7 @@ telnet localhost 45454
 
 # Worksheet 2 Part 2: Interrupts, Drivers & Shell
 
-## Directory Structure
+## Directory Structure (Part 2 Expansion)
 ```text
 25035586worksheet2/
 ├── drivers/
@@ -229,3 +229,10 @@ The project compiles cleanly with NASM, GCC (`-m32 -nostdlib -nostdinc -fno-buil
 make clean
 make
 make run
+```
+
+To close QEMU when running in curses mode, connect to the QEMU monitor from a second terminal:
+```bash
+telnet localhost 45454
+(qemu) quit
+```
