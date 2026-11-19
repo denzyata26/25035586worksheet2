@@ -8,6 +8,12 @@
 ## Overview
 This repository contains my implementation for Worksheet 2 (Part 1 and Part 2), following Chapters 1 to 4 of [*The Little Book of OS Development*](https://littleosbook.github.io/). It builds a 32-bit x86 operating system kernel booted from scratch via GRUB Legacy (`stage2_eltorito`) in QEMU, featuring a VGA framebuffer, IDT hardware interrupts, a serial port keyboard driver, and an interactive command shell.
 
+## Quick Summary (At a Glance)
+If you want a fast overview of what this repository accomplishes, here is the breakdown of both project parts:
+
+- **Part 1 (Booting & Framebuffer):** Implements multiboot compliance, a 32-bit stack setup, C-to-Assembly integration, and a VGA text-mode driver (`loader.asm`, `link.ld`, `kernel.c`, `framebuffer.c`).
+- **Part 2 (Interrupts & Shell):** Implements IDT configuration, PIC remapping, COM1 serial port, a PS/2 keyboard driver, and an interactive shell (`interrupts.c`, `pic.c`, `keyboard.c`).
+
 ## Directory Structure
 ```text
 25035586worksheet2/
