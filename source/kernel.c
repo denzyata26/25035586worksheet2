@@ -1,53 +1,75 @@
-#include "../drivers/framebuffer.h"
+#include "drivers/framebuffer.h"
+#include "drivers/interrupts.h"
+#include "drivers/hardware_interrupt_enabler.h"
+#include "drivers/keyboard.h"
 
-int sum_of_three(int arg1, int arg2, int arg3) {
-    return arg1 + arg2 + arg3;
+int string_compare(const char *s1, const char *s2) {
+    while (*s1 && (*s1 == *s2)) {
+        s1++;
+        s2++;
+    }
+    return *(const unsigned char *)s1 - *(const unsigned char *)s2;
 }
 
-int multiply(int a, int b) {
-    return a * b;
+void print_banner(void) {
+    fb_set_color(FB_LIGHT_CYAN, FB_BLACK);
+    fb_print("+--------------------------------------------------+\n");
+    fb_print("|                  DENZYOS KERNEL                  |\n");
+    fb_print("|         ID: 25035586 - Ata Deniz Onursoy         |\n");
+    fb_print("|          UFCFWK-15-2 Worksheet 2 Part 2          |\n");
+    fb_print("+--------------------------------------------------+\n\n");
+    fb_set_color(FB_WHITE, FB_BLACK);
 }
 
-int max_val(int a, int b) {
-    return (a > b) ? a : b;
+void parse_command(char *cmd) {
+    if (string_compare(cmd, "help") == 0) {
+        fb_set_color(FB_LIGHT_GREEN, FB_BLACK);
+        fb_print("Available Commands:\n");
+        fb_set_color(FB_WHITE, FB_BLACK);
+        fb_print("  help      - Display this help menu\n");
+        fb_print("  clear     - Clear the terminal screen\n");
+        fb_print("  version   - Show kernel version and student info\n");
+        fb_print("  echo      - Print user text (usage: echo [text])\n");
+    } else if (string_compare(cmd, "clear") == 0) {
+        fb_clear();
+        print_banner();
+    } else if (string_compare(cmd, "version") == 0) {
+        fb_set_color(FB_LIGHT_YELLOW, FB_BLACK);
+        fb_print("DenzyOS v1.0.0 [ID: 25035586 - Ata Deniz Onursoy]\n");
+        fb_set_color(FB_WHITE, FB_BLACK);
+    } else if (cmd[0] == 'e' && cmd[1] == 'c' && cmd[2] == 'h' && cmd[3] == 'o' && (cmd[4] == ' ' || cmd[4] == '\0')) {
+        char *args = &cmd[4];
+        while (*args == ' ') args++;
+        fb_print(args);
+        fb_print("\n");
+    } else if (cmd[0] != '\0') {
+        fb_set_color(FB_LIGHT_RED, FB_BLACK);
+        fb_print("Error: Unknown command. Type 'help' for assistance.\n");
+        fb_set_color(FB_WHITE, FB_BLACK);
+    }
 }
 
 void kmain(void) {
+    init_serial(); // Initialize COM1 serial port for terminal input/output
+
     fb_set_color(FB_WHITE, FB_BLACK);
     fb_clear();
 
-    fb_move(0, 0);
-    fb_set_color(FB_LIGHT_GREEN, FB_BLACK);
-    fb_print("Tiny OS - Worksheet 2 Part 1 (25035586)");
+    print_banner();
 
-    fb_move(0, 2);
-    fb_set_color(FB_LIGHT_CYAN, FB_BLACK);
-    fb_print("Task 1 - Bootloader check:");
-    fb_move(2, 3);
-    fb_set_color(FB_WHITE, FB_BLACK);
-    fb_print("EAX = ");
-    fb_print_hex(0xCAFEBABE);
+    interrupts_install_idt();
+    enable_hardware_interrupts();
 
-    fb_move(0, 5);
-    fb_set_color(FB_LIGHT_CYAN, FB_BLACK);
-    fb_print("Task 2 - C function tests:");
+    char cmd_buf[128];
 
-    fb_move(2, 6);
-    fb_set_color(FB_WHITE, FB_BLACK);
-    fb_print("sum_of_three(10, 20, 30) = ");
-    fb_print_num(sum_of_three(10, 20, 30));
+    while (1) {
+        fb_set_color(FB_LIGHT_CYAN, FB_BLACK);
+        fb_print("25035586@denzyos:~# ");
+        fb_set_color(FB_WHITE, FB_BLACK);
 
-    fb_move(2, 7);
-    fb_print("multiply(6, 7)           = ");
-    fb_print_num(multiply(6, 7));
+        readline(cmd_buf, 128);
+        fb_print("\n");
 
-    fb_move(2, 8);
-    fb_print("max_val(42, 99)          = ");
-    fb_print_num(max_val(42, 99));
-
-    fb_move(0, 10);
-    fb_set_color(FB_LIGHT_GREEN, FB_BLACK);
-    fb_print("Task 3 - Framebuffer 2D API & cursor I/O working.");
-
-    fb_move(0, 12);
+        parse_command(cmd_buf);
+    }
 }
