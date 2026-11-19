@@ -1,10 +1,12 @@
-# UFCFWK-15-2 Operating Systems - Worksheet 2 Part 1
+# UFCFWK-15-2 Operating Systems - Worksheet 2 (Part 1 & Part 2)
 
 **Student Name:** Ata Deniz Onursoy  
 **Student ID:** 25035586  
+**Module:** UFCFWK-15-2 Operating Systems (UWE Bristol)  
+**Target Environment:** CSCT Cloud / QEMU (`qemu-system-i386`)  
 
 ## Overview
-This repository contains my implementation for Worksheet 2 Part 1, following Chapters 1 to 4 of [*The Little Book of OS Development*](https://littleosbook.github.io/). It builds a 32-bit x86 operating system kernel booted from scratch via GRUB Legacy (`stage2_eltorito`) in QEMU.
+This repository contains my implementation for Worksheet 2 (Part 1 and Part 2), following Chapters 1 to 4 of [*The Little Book of OS Development*](https://littleosbook.github.io/). It builds a 32-bit x86 operating system kernel booted from scratch via GRUB Legacy (`stage2_eltorito`) in QEMU, featuring a VGA framebuffer, IDT hardware interrupts, a serial port keyboard driver, and an interactive command shell.
 
 ## Directory Structure
 ```text
@@ -14,18 +16,19 @@ This repository contains my implementation for Worksheet 2 Part 1, following Cha
 │   ├── framebuffer.h
 │   └── io.h
 ├── evi/
-│   ├── elf_headers.png
-│   ├── seabios.png
-│   ├── grub.png
+│   ├── build.png
 │   ├── cafebabe_log.png
-│   ├── stack_symbol.png
+│   ├── elf_headers.png
+│   ├── grub.png
 │   ├── kernel_output.png
-│   └── build.png
+│   ├── seabios.png
+│   └── stack_symbol.png
 ├── iso/
 │   └── boot/
 │       └── grub/
 │           ├── menu.lst
 │           └── stage2_eltorito
+│       └── kernel.elf
 ├── source/
 │   ├── kernel.c
 │   ├── link.ld
@@ -34,8 +37,6 @@ This repository contains my implementation for Worksheet 2 Part 1, following Cha
 ├── Makefile
 └── README.md
 ```
-
-    
 
 ## Task 1 - Booting the Machine 
 The kernel entry point is implemented in `source/loader.asm`. To allow GRUB to validate and load the ELF binary at physical and virtual address `0x00100000` (1 MB), the Multiboot header constants (`MAGIC_NUMBER = 0x1BADB002`, `FLAGS = 0x0`, and `CHECKSUM = -0x1BADB002`) are aligned at the start of the `.text` segment via `source/link.ld`:
@@ -143,3 +144,82 @@ To close QEMU when running in curses mode, connect to the QEMU monitor from a se
 telnet localhost 45454
 (qemu) quit
 ```
+
+# Worksheet 2 Part 2: Interrupts, Drivers & Shell
+
+## Directory Structure
+```text
+25035586worksheet2/
+├── drivers/
+│   ├── framebuffer.c
+│   ├── framebuffer.h
+│   ├── hardware_interrupt_enabler.h
+│   ├── hardware_interrupt_enabler.s
+│   ├── interrupt_asm.s
+│   ├── interrupt_handlers.s
+│   ├── interrupts.c
+│   ├── interrupts.h
+│   ├── io.h
+│   ├── keyboard.c
+│   ├── keyboard.h
+│   ├── pic.c
+│   ├── pic.h
+│   └── types.h
+├── evi/
+│   ├── build.png
+│   ├── cafebabe_log.png
+│   ├── elf_headers.png
+│   ├── grub.png
+│   ├── kernel_output.png
+│   ├── seabios.png
+│   ├── shell_execution.png
+│   └── stack_symbol.png
+├── iso/
+│   └── boot/
+│       └── grub/
+│           ├── menu.lst
+│           └── stage2_eltorito
+│       └── kernel.elf
+├── source/
+│   ├── kernel.c
+│   ├── link.ld
+│   └── loader.asm
+├── .gitignore
+├── Makefile
+└── README.md
+```
+
+
+## Task 4 - Interrupts, IDT & Hardware Setup
+To handle hardware events and CPU exceptions reliably, an Interrupt Descriptor Table (IDT) is configured and installed (`drivers/interrupts.c`, `pic.c`).
+
+- **IDT Initialization:** Configured gate descriptors mapping exception handlers and hardware IRQs to respective assembly stubs (`drivers/interrupt_asm.s`, `drivers/interrupt_handlers.s`).
+- **PIC Remapping:** Reprogrammed the Master and Slave Programmable Interrupt Controllers (PIC1 at `0x20`, PIC2 at `0xA0`) to offset `0x20` and `0x28` to prevent IRQ conflicts with CPU exceptions.
+- **Hardware Interrupt Enabler:** Enabled CPU interrupts globally using the `sti` instruction wrapped via `drivers/hardware_interrupt_enabler.s`.
+
+## Task 5 - Serial Port & Keyboard Input Integration
+To support terminal interaction within the CSCT Cloud `-nographic` QEMU environment:
+
+- **COM1 Serial Initialization:** Initialized the COM1 serial port (`0x3F8`) with custom baud rate, parity, stop bits, and FIFO settings (`drivers/keyboard.c`).
+- **Keyboard Interrupts & Buffering:** Attached an IRQ1 handler to capture PS/2 keyboard inputs, supporting character buffering, return key execution, and backspace (`\b`) deletion.
+
+## Task 6 - Interactive Command Shell & Personalization
+An interactive kernel shell is implemented in `source/kernel.c`, featuring a clean, professionally aligned student banner (`ID: 25035586 - Ata Deniz Onursoy`) and a custom prompt (`25035586@denzyos:~#`).
+
+Supported built-in commands:
+- **`help`**: Displays the list of available shell commands and descriptions.
+- **`clear`**: Clears the terminal screen and re-renders the header banner.
+- **`version`**: Shows the kernel version and student identification details.
+- **`echo [text]`**: Echoes user-provided arguments back to the screen.
+
+### Interactive Shell Execution Evidence
+![Shell Execution](evi/shell_execution.png)
+*(Fig: DenzyOS interactive shell running with custom student banner, active prompt, and command outputs.)*
+
+## Building and Running
+The project compiles cleanly with NASM, GCC (`-m32 -nostdlib -nostdinc -fno-builtin -fno-stack-protector -nostartfiles -nodefaultlibs -Wall -Wextra -Werror`), GNU `ld`, and `genisoimage`:
+
+```bash
+make clean
+make
+make run
