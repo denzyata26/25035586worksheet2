@@ -1,7 +1,7 @@
 ASM = nasm
 CC = gcc
 CFLAGS = -m32 -nostdlib -nostdinc -fno-builtin -fno-stack-protector -nostartfiles -nodefaultlibs -Wall -Wextra -Werror -c
-LDFLAGS = -T source/link.ld -melf_i386 -n -z noexecstack --no-warn-rwx-segments --no-warn-rwx-segments
+LDFLAGS = -T source/link.ld -melf_i386 -n -z noexecstack --no-warn-rwx-segments
 ASFLAGS = -f elf32
 
 all: kernel.elf os.iso

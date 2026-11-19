@@ -4,14 +4,15 @@
 **Student ID:** 25035586  
 
 ## Overview
-This repository contains my implementation for Worksheet 2 Part 1, following Chapters 1 to 4 of *The Little Book of OS Development*. It builds a 32-bit x86 operating system kernel booted from scratch via GRUB Legacy (`stage2_eltorito`) in QEMU.
+This repository contains my implementation for Worksheet 2 Part 1, following Chapters 1 to 4 of [*The Little Book of OS Development*](https://littleosbook.github.io/). It builds a 32-bit x86 operating system kernel booted from scratch via GRUB Legacy (`stage2_eltorito`) in QEMU.
 
 ## Directory Structure
 ```text
 25035586worksheet2/
 ├── drivers/
 │   ├── framebuffer.c
-│   └── framebuffer.h
+│   ├── framebuffer.h
+│   └── io.h
 ├── evi/
 │   ├── elf_headers.png
 │   ├── seabios.png
@@ -36,7 +37,7 @@ This repository contains my implementation for Worksheet 2 Part 1, following Cha
 
     
 
-# Task 1 - Booting the Machine 
+## Task 1 - Booting the Machine 
 The kernel entry point is implemented in `source/loader.asm`. To allow GRUB to validate and load the ELF binary at physical and virtual address `0x00100000` (1 MB), the Multiboot header constants (`MAGIC_NUMBER = 0x1BADB002`, `FLAGS = 0x0`, and `CHECKSUM = -0x1BADB002`) are aligned at the start of the `.text` segment via `source/link.ld`:
 
 ```nasm
