@@ -130,9 +130,10 @@ void fb_move_cursor(unsigned short pos) {
 }
 ```
 
-The 2D Framebuffer API (`fb_move(x, y)`, `fb_set_color(fg, bg)`, `fb_clear()`, `fb_put_char(c)`, `fb_print(str)`, `fb_print_num(num)`, and `fb_print_hex(num)`) is tested in `kmain` to display the Task 1 and Task 2 results on screen:
+The 2D Framebuffer API (`fb_move(x, y)`, `fb_set_color(fg, bg)`, `fb_clear()`, `fb_put_char(c)`, `fb_print(str)`, `fb_print_num(num)`, and `fb_print_hex(num)`) is tested in `kmain`: at boot the kernel prints the results of the Task 2 C functions and a colour test on screen:
 
-![Kernel Output](screenshots/kernel_output.png)
+![Boot screen with Part 1 C function and framebuffer tests](screenshots/kernel_output.png)
+*(Fig: Boot screen in curses mode (`make run-curses`). `sum_of_three`, `multiply` and `max_val` results are printed with `fb_print_num`, `0xCAFEBABE` with `fb_print_hex`, and the colour line uses `fb_set_color`.)*
 
 ## Building and Running
 The project compiles cleanly with NASM, GCC (`-m32 -nostdlib -nostdinc -fno-builtin -fno-stack-protector -nostartfiles -nodefaultlibs -Wall -Wextra -Werror`), GNU `ld`, and `genisoimage`:
@@ -310,8 +311,8 @@ Supported commands:
 - **`move`**: `fb_move(x, y)` demo.
 
 ### Interactive Shell Execution Evidence
-![Shell Execution](screenshots/shell_execution.png)
-*(Fig: DenzyOS interactive shell running with custom student banner, active prompt, and command outputs.)*
+![Shell help command listing the available commands](screenshots/shell_execution.png)
+*(Fig: The `help` command in curses mode, typed on the PS/2 keyboard. The list is generated from the shell's command table.)*
 
 ## Building and Running
 The project compiles cleanly with NASM, GCC (`-m32 -nostdlib -nostdinc -fno-builtin -fno-stack-protector -nostartfiles -nodefaultlibs -Wall -Wextra -Werror`), GNU `ld`, and `genisoimage`:
