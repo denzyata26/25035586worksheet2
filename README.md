@@ -8,13 +8,12 @@
 ## Overview
 This repository contains my implementation for Worksheet 2 (Part 1 and Part 2), following Chapters 1 to 4 (Part 1) and Chapter 6 (Part 2) of [*The Little Book of OS Development*](https://littleosbook.github.io/). It builds a 32-bit x86 operating system kernel booted from scratch via GRUB Legacy (`stage2_eltorito`) in QEMU, featuring a VGA framebuffer, IDT hardware interrupts, an interrupt-driven PS/2 keyboard driver with a circular input buffer, and an interactive command shell.
 
-## Quick Summary (At a Glance)
-If you want a fast overview of what this repository accomplishes, here is the breakdown of both project parts:
+## Summary
 
-- **Part 1 (Booting & Framebuffer):** Implements multiboot compliance, a 32-bit stack setup, C-to-Assembly integration, and a VGA text-mode driver (`loader.asm`, `link.ld`, `kernel.c`, `framebuffer.c`).
-- **Part 2 (Interrupts & Shell):** Implements IDT configuration, PIC remapping, COM1 serial port, a PS/2 keyboard driver, and an interactive shell (`interrupts.c`, `pic.c`, `keyboard.c`).
+- **Part 1 (Booting & Framebuffer):** multiboot header, 32-bit stack setup, calling C from assembly, and a VGA text-mode driver (`loader.asm`, `link.ld`, `kernel.c`, `framebuffer.c`).
+- **Part 2 (Interrupts & Shell):** IDT, PIC remapping, keyboard interrupts with an input buffer, COM1 serial input, and a command shell (`interrupts.c`, `pic.c`, `keyboard.c`, `kernel.c`).
 
-## Directory Structure  (Part 1 Baseline)
+## Directory Structure (Part 1)
 ```text
 25035586worksheet2/
 ├── drivers/
@@ -44,7 +43,10 @@ If you want a fast overview of what this repository accomplishes, here is the br
 └── README.md
 ```
 
-## Task 1 - Booting the Machine 
+## Task 1 - Booting the Machine
+
+> **Summary:** GRUB loads the kernel at 1 MB, and the first instruction of the kernel puts `0xCAFEBABE` in `eax`. Finding that value in the QEMU CPU log proves the machine booted our code.
+
 The kernel entry point is implemented in `source/loader.asm`. To allow GRUB to validate and load the ELF binary at physical and virtual address `0x00100000` (1 MB), the Multiboot header constants (`MAGIC_NUMBER = 0x1BADB002`, `FLAGS = 0x0`, and `CHECKSUM = -0x1BADB002`) are aligned at the start of the `.text` segment via `source/link.ld`:
 
 ```nasm
@@ -75,7 +77,10 @@ Upon booting the `os` entry, `loader` writes `0xCAFEBABE` into the `eax` registe
 
 ![CAFEBABE CPU Log](screenshots/cafebabe_log.png)
 
-## Task 2 - Calling C from Assembler 
+## Task 2 - Calling C from Assembler
+
+> **Summary:** C code needs a stack, so the loader reserves 4 KB for one, points `esp` at it, and then calls `kmain`. From there the kernel is written in C.
+
 Since bare-metal execution starts without a valid C stack, 4096 bytes (`KERNEL_STACK_SIZE equ 4096`) are reserved in the `.bss` section of `source/loader.asm`. Because the x86 stack grows downwards towards lower memory addresses, `esp` is initialized to the top of `kernel_stack` before calling `kmain`:
 
 ```nasm
@@ -85,9 +90,11 @@ loader:
     call kmain
 ```
 
-Running `nm -n kernel.elf` confirms the symbol layout in memory: `kernel_stack` starts at `0x00103000` and the next `.bss` symbol (`cursor_x`) starts at `0x00104000`, confirming the exact `0x1000` (4096-byte) stack allocation alongside the C function symbols (`sum_of_three`, `multiply`, `max_val`, and `kmain`):
+Running `nm -n kernel.elf` shows the symbol layout in memory. In the build shown below, `kernel_stack` starts at `0x00103000` and the next `.bss` symbol (`cursor_x`) starts at `0x00104000`, so exactly `0x1000` (4096) bytes are reserved for the stack. The C function symbols (`sum_of_three`, `multiply`, `max_val` and `kmain`) are also listed:
 
 ![Symbol Table and Stack Allocation](screenshots/stack_symbol.png)
+
+The exact addresses move as the kernel grows. In the current build `kernel_stack` is at `0x00104000` and `cursor_x` at `0x00105000`, still exactly `0x1000` apart.
 
 In `source/kernel.c`, three C functions are implemented and called from `kmain` following the 32-bit `cdecl` calling convention:
 
@@ -101,21 +108,22 @@ int multiply(int a, int b) {
 }
 
 int max_val(int a, int b) {
-    if (a > b) {
-        return a;
-    }
-    return b;
+    return (a > b) ? a : b;
 }
 ```
 
 ## Task 3 - Framebuffer & I/O Driver API
+
+> **Summary:** Text appears on screen by writing characters straight into video memory at `0xB8000`, and the blinking cursor is moved through I/O ports. On top of that there is a small API to move, print text and numbers, set colours and clear the screen.
+
 The VGA text-mode driver is separated under `drivers/framebuffer.c`, `drivers/framebuffer.h`, and `drivers/io.h`. It writes characters and color bytes to memory-mapped I/O starting at `0x000B8000` (80x25 cells, 2 bytes per cell):
 
 ```c
-void fb_write_cell(unsigned int i, char c, unsigned char fg, unsigned char bg) {
-    char *fb = (char *) FB_ADDRESS;
-    fb[i * 2] = c;
-    fb[i * 2 + 1] = ((bg & 0x0F) << 4) | (fg & 0x0F);
+static char *fb = (char *) FB_ADDRESS;
+
+void fb_write_cell(unsigned int cell, char c, unsigned char fg, unsigned char bg) {
+    fb[cell * 2] = c;
+    fb[cell * 2 + 1] = ((bg & 0x0F) << 4) | (fg & 0x0F);
 }
 ```
 
@@ -133,6 +141,7 @@ void fb_move_cursor(unsigned short pos) {
 The 2D Framebuffer API (`fb_move(x, y)`, `fb_set_color(fg, bg)`, `fb_clear()`, `fb_put_char(c)`, `fb_print(str)`, `fb_print_num(num)`, and `fb_print_hex(num)`) is tested in `kmain`: at boot the kernel prints the results of the Task 2 C functions and a colour test on screen:
 
 ![Boot screen with Part 1 C function and framebuffer tests](screenshots/kernel_output.png)
+
 *(Fig: Boot screen in curses mode (`make run-curses`). `sum_of_three`, `multiply` and `max_val` results are printed with `fb_print_num`, `0xCAFEBABE` with `fb_print_hex`, and the colour line uses `fb_set_color`.)*
 
 ## Building and Running
@@ -148,7 +157,9 @@ make run-curses   # VGA framebuffer drawn with curses, PS/2 keyboard input, logs
 ```
 
 `make run` uses `-d cpu -D logQ.txt`, so `EAX=cafebabe` can be found in `logQ.txt` (exit with `Ctrl-A` then `X`).
+
 In curses mode QEMU no longer receives `Ctrl-C`, so it is closed through the QEMU monitor from a second terminal:
+
 ```bash
 telnet localhost 45454
 (qemu) quit
@@ -158,7 +169,7 @@ When the kernel boots, `kmain` runs a test of the Task 2 functions and the Task 
 
 # Worksheet 2 Part 2: Interrupts, Drivers & Shell
 
-## Directory Structure (Part 2 Expansion)
+## Directory Structure (Part 2)
 ```text
 25035586worksheet2/
 ├── drivers/
@@ -181,6 +192,8 @@ When the kernel boots, `kmain` runs a test of the Task 2 functions and the Task 
 │   ├── cafebabe_log.png
 │   ├── elf_headers.png
 │   ├── grub.png
+│   ├── grub_boot.png
+│   ├── kernel_boot.png
 │   ├── kernel_output.png
 │   ├── seabios.png
 │   ├── shell_execution.png
@@ -202,6 +215,9 @@ When the kernel boots, `kmain` runs a test of the Task 2 functions and the Task 
 
 
 ## Interrupt Setup - IDT & PIC
+
+> **Summary:** The IDT tells the CPU which function to run for each interrupt, and the PIC is set up so that only the keyboard and serial port interrupts get through.
+
 Before the keyboard can be used, an Interrupt Descriptor Table (IDT) is installed and the PIC is configured (`drivers/interrupts.c`, `drivers/pic.c`).
 
 - **IDT:** `interrupts_install_idt()` fills a 32-bit interrupt gate for interrupt 33 (IRQ1, keyboard) and 36 (IRQ4, COM1), pointing at the assembly stubs generated by the `no_error_code_interrupt_handler` macro in `drivers/interrupt_asm.s`. The stubs save the registers, call the C `interrupt_handler`, restore them and `iret`. `load_idt` (`drivers/interrupt_handlers.s`) loads the table with `lidt`.
@@ -215,6 +231,9 @@ outb(0x21, inb(0x21) & ~((1 << 1) | (1 << 4)));   /* unmask IRQ1 (keyboard) and 
 - **Enabling interrupts:** `enable_hardware_interrupts()` / `disable_hardware_interrupts()` wrap `sti` / `cli` (`drivers/hardware_interrupt_enabler.s`).
 
 ## Part 2 Task 1 - Display Keyboard Input
+
+> **Summary:** Every key press raises an interrupt. The handler reads the key's scan code, turns it into a character and shows it on screen, with backspace and enter handled specially.
+
 `keyboard_read_scan_code()` reads the scan code from the keyboard data port `0x60`, and `keyboard_scan_code_to_ascii()` converts it with the US QWERTY table (key releases, which have bit 7 set, return 0). Reading port `0x60` is essential: until the byte is read the keyboard controller will not raise another interrupt.
 
 The keyboard case of `interrupt_handler` reads every pending scan code, ignores break codes, converts it to ASCII and handles the three cases:
@@ -244,6 +263,9 @@ case INTERRUPTS_KEYBOARD:
 `pic_acknowledge()` sends the end-of-interrupt so the PIC delivers the next key press.
 
 ## Part 2 Task 2 - Input Buffer API (`getc` / `readline`)
+
+> **Summary:** The interrupt handler drops each typed character into a ring-shaped buffer. `getc()` takes characters out one at a time, and `readline()` collects them until enter is pressed.
+
 The interrupt handler and the rest of the kernel share a **circular buffer** of 256 bytes (`drivers/keyboard.c`). The handler is the only writer of `buffer_head`, `getc()` is the only reader of `buffer_tail`. Both indices are `volatile` because they change inside an interrupt.
 
 ```c
@@ -280,6 +302,9 @@ u8int getc(void) {
 **Serial input:** with `make run` (`-nographic`) there is no VGA window and no PS/2 keyboard, the terminal is connected to COM1. The UART is configured to raise IRQ4 on received data, and the COM1 case of `interrupt_handler` passes each byte (`\r` becomes `\n`, `DEL` becomes `\b`) through the same `process_input_char()`. The shell therefore works the same way in both run modes. Everything printed by the framebuffer driver is also copied to COM1 so it is visible in `-nographic` mode.
 
 ## Part 2 Task 3 - Terminal
+
+> **Summary:** The shell shows a prompt, reads a line, splits off the first word as the command, and runs the matching function from a table. Anything it does not know gets an error message.
+
 The shell in `source/kernel.c` prints the prompt `25035586@denzyos:~#`, reads a line with `readline()`, splits it at the first space into the command name and its arguments, and looks the name up in a command table:
 
 ```c
@@ -312,6 +337,7 @@ Supported commands:
 
 ### Interactive Shell Execution Evidence
 ![Shell help command listing the available commands](screenshots/shell_execution.png)
+
 *(Fig: The `help` command in curses mode, typed on the PS/2 keyboard. The list is generated from the shell's command table.)*
 
 ## Building and Running
@@ -325,6 +351,7 @@ make run-curses   # VGA framebuffer + PS/2 keyboard
 ```
 
 To close QEMU when running in curses mode, connect to the QEMU monitor from a second terminal:
+
 ```bash
 telnet localhost 45454
 (qemu) quit
