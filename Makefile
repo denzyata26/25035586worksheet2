@@ -11,7 +11,7 @@ OBJECTS = source/loader.o \
 CC = gcc
 CFLAGS = -I. -m32 -nostdlib -nostdinc -fno-builtin -fno-stack-protector \
          -nostartfiles -nodefaultlibs -Wall -Wextra -Werror -c
-LDFLAGS = -T ./source/link.ld -melf_i386 --no-warn-rwx-segments --no-warn-rwx-segments
+LDFLAGS = -T ./source/link.ld -melf_i386 --no-warn-rwx-segments
 AS = nasm
 ASFLAGS = -f elf
 
@@ -21,7 +21,9 @@ kernel.elf: $(OBJECTS)
 	ld $(LDFLAGS) $(OBJECTS) -o kernel.elf
 
 os.iso: kernel.elf
+	mkdir -p iso/boot/grub
 	cp kernel.elf iso/boot/kernel.elf
+	cp -n /opt/os/stage2_eltorito iso/boot/grub/ 2>/dev/null || true
 	genisoimage -R \
 				-b boot/grub/stage2_eltorito \
 				-no-emul-boot \
@@ -33,15 +35,33 @@ os.iso: kernel.elf
 				-o os.iso \
 				iso
 
+# No VGA window: the terminal is connected to COM1 (input and output).
+# Quit with Ctrl-A then X.
 run: os.iso
 	qemu-system-i386 \
+		-nographic \
 		-boot d \
 		-cdrom os.iso \
 		-m 32 \
-		-nographic \
-		-serial mon:stdio \
 		-no-reboot \
-		-no-shutdown
+		-no-shutdown \
+		-d cpu \
+		-D logQ.txt
+
+# VGA framebuffer drawn with curses, input from the emulated PS/2 keyboard.
+# Quit from a second terminal: telnet localhost 45454, then type: quit
+run-curses: os.iso
+	qemu-system-i386 \
+		-display curses \
+		-monitor telnet::45454,server,nowait \
+		-serial file:serial.log \
+		-boot d \
+		-cdrom os.iso \
+		-m 32 \
+		-no-reboot \
+		-no-shutdown \
+		-d cpu \
+		-D logQ.txt
 
 %.o: %.c
 	$(CC) $(CFLAGS) $< -o $@
@@ -53,4 +73,6 @@ run: os.iso
 	$(AS) $(ASFLAGS) $< -o $@
 
 clean:
-	rm -rf *.o source/*.o drivers/*.o kernel.elf os.iso iso/boot/kernel.elf
+	rm -rf *.o source/*.o drivers/*.o kernel.elf os.iso iso/boot/kernel.elf logQ.txt serial.log
+
+.PHONY: all run run-curses clean

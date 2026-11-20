@@ -36,7 +36,9 @@ struct stack_state {
 void interrupt_handler(struct cpu_state cpu, u32int interrupt, struct stack_state stack);
 void interrupts_install_idt(void);
 
+// Wrappers around ASM.
 void load_idt(u32int idt_address);
-void interrupt_handler_33(void);
+void interrupt_handler_33(void);  /* IRQ1 - keyboard */
+void interrupt_handler_36(void);  /* IRQ4 - COM1 serial port */
 
 #endif /* INCLUDE_INTERRUPTS_H */
